@@ -21,10 +21,21 @@ import type {
   Globe,
   JulianDate, MapMode2D, MapProjection, PerspectiveFrustum,
   Scene,
-  ImageryLayer
-} from 'cesium';
+  ImageryLayer,
+  GeocoderService,
+  ProviderViewModel,
+  Ellipsoid,
+  TerrainProvider,
+  Terrain,
+  SkyBox,
+  ClockViewModel,
+  SkyAtmosphere,
+  SceneMode,
+  ShadowMode
+  , Viewer} from 'cesium';
 import type AbstractSynchronizer from './AbstractSynchronizer';
 import type VectorLayerCounterpart from './core/VectorLayerCounterpart';
+
 
 /**
  * Moved from Cesium
@@ -61,13 +72,66 @@ type SceneOptions = {
   msaaSamples?: number;
 }
 
+type ViewerOptions = {
+  animation: boolean
+  baseLayerPicker: boolean
+  fullscreenButton: boolean
+  vrButton: boolean
+  geocoder: boolean | GeocoderService[]
+  homeButton: boolean
+  infoBox: boolean
+  sceneModePicker: boolean
+  selectionIndicator: boolean
+  timeline: boolean
+  navigationHelpButton: boolean
+  navigationInstructionsInitiallyVisible: boolean
+  scene3DOnly: boolean
+  shouldAnimate: boolean
+  clockViewModel: ClockViewModel
+  selectedImageryProviderViewModel: ProviderViewModel
+  imageryProviderViewModels: ProviderViewModel[]
+  selectedTerrainProviderViewModel: ProviderViewModel
+  terrainProviderViewModels: ProviderViewModel[]
+  baseLayer: ImageryLayer | false
+  ellipsoid: Ellipsoid
+  terrainProvider: TerrainProvider
+  terrain: Terrain
+  skyBox: SkyBox | false
+  skyAtmosphere: SkyAtmosphere | false
+  fullscreenElement: Element | string
+  useDefaultRenderLoop: boolean
+  targetFrameRate: number
+  showRenderLoopErrors: boolean
+  useBrowserRecommendedResolution: boolean
+  automaticallyTrackDataSourceClocks: boolean
+  contextOptions: ContextOptions
+  sceneMode: SceneMode
+  mapProjection: MapProjection
+  globe: Globe
+  orderIndependentTranslucency: boolean
+  creditContainer: Element | string
+  creditViewport: Element | string
+  dataSources: DataSourceCollection
+  shadows: boolean;
+  terrainShadows: ShadowMode
+  mapMode2D: MapMode2D
+  projectionPicker: boolean
+  blurActiveElementOnCanvasFocus: boolean
+  requestRenderMode: boolean
+  maximumRenderTimeChange: number
+  depthPlaneEllipsoidOffset: number
+  msaaSamples: number
+}
+
+
 type OLCesiumOptions = {
   map: Map,
   time?: () => JulianDate,
   target?: Element | string,
   createSynchronizers?: (map: Map, scene: Scene, dataSourceCollection: DataSourceCollection) => AbstractSynchronizer<ImageryLayer | VectorLayerCounterpart>[],
   stopOpenLayersEventsPropagation?: boolean,
-  sceneOptions?: SceneOptions
+  sceneOptions?: SceneOptions // TODO: 移除该配置项，通过viewerOptions即可实现
+  viewerOptions?: ViewerOptions
 }
 
 // FIXME: remove this when all the synchronizers are migrated to typescript.
@@ -86,6 +150,8 @@ type SynchronizerType = AbstractSynchronizer<ImageryLayer | VectorLayerCounterpa
  *      OpenLayers when Cesium is active.
  * @property {Cesium.SceneOptions} [sceneOptions] Allows the passing of property value to the
  *      `Cesium.Scene`.
+ * @property {Cesium.ViewerOptions} [viewerOptions] Allows the passing of property value to the
+ *      `Cesium.Viewer`.
  */
 export default class OLCesium {
   private autoRenderLoop_: olcsAutoRenderLoop | null = null;
@@ -102,6 +168,7 @@ export default class OLCesium {
   private enabled_ = false;
   private pausedInteractions_: Interaction[] = [];
   private hiddenRootGroup_: Group | null = null;
+  private viewer_: Viewer;
   private scene_: Scene;
   private camera_: olcsCamera;
   private globe_: Globe;
@@ -150,6 +217,25 @@ export default class OLCesium {
     }
     targetElement.appendChild(this.container_);
 
+    const viewerOptions = options.viewerOptions !== undefined ?
+      {...options.viewerOptions, scene3DOnly: true} :
+      {
+        sceneMode: Cesium.SceneMode.SCENE3D,
+        animation: false,
+        geocoder: false,
+        homeButton: false,
+        fullscreenButton: false,
+        navigationHelpButton: false,
+        sceneModePicker: false,
+        baseLayerPicker: false,
+        creditContainer: false,
+        timeline: false,
+        baseLayer: false, // FIXME: TS类型错误
+        scene3DOnly: true,
+      };
+
+    this.viewer_ = new Cesium.Viewer(this.container_, viewerOptions);
+
     /**
      * Whether the Cesium container is placed over the ol map.
      * a target => side by side mode
@@ -166,6 +252,8 @@ export default class OLCesium {
     }
 
     this.canvas_ = document.createElement<'canvas'>('canvas');
+    // TODO: 确认canvas的实际用处
+    // this.canvas_ = this.viewer_.container.getElementsByClassName('cesium-widget')[0].children[0] as HTMLCanvasElement;
     const canvasAttribute = document.createAttribute('style');
     canvasAttribute.value = fillArea;
     this.canvas_.setAttributeNode(canvasAttribute);
@@ -184,11 +272,7 @@ export default class OLCesium {
 
     this.container_.appendChild(this.canvas_);
 
-    const sceneOptions: SceneOptions = options.sceneOptions !== undefined ?
-      {...options.sceneOptions, canvas: this.canvas_, scene3DOnly: true} :
-      {canvas: this.canvas_, scene3DOnly: true};
-
-    this.scene_ = new Cesium.Scene(sceneOptions);
+    this.scene_ = this.viewer_.scene; // TODO: 统一从this.viewer_中获取
 
     const sscc = this.scene_.screenSpaceCameraController;
 
