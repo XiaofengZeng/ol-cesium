@@ -31,8 +31,9 @@ import type {
   ClockViewModel,
   SkyAtmosphere,
   SceneMode,
-  ShadowMode
-  , Viewer} from 'cesium';
+  ShadowMode,
+  Viewer
+} from 'cesium';
 import type AbstractSynchronizer from './AbstractSynchronizer';
 import type VectorLayerCounterpart from './core/VectorLayerCounterpart';
 
@@ -73,54 +74,54 @@ type SceneOptions = {
 }
 
 type ViewerOptions = {
-  animation: boolean
-  baseLayerPicker: boolean
-  fullscreenButton: boolean
-  vrButton: boolean
-  geocoder: boolean | GeocoderService[]
-  homeButton: boolean
-  infoBox: boolean
-  sceneModePicker: boolean
-  selectionIndicator: boolean
-  timeline: boolean
-  navigationHelpButton: boolean
-  navigationInstructionsInitiallyVisible: boolean
-  scene3DOnly: boolean
-  shouldAnimate: boolean
-  clockViewModel: ClockViewModel
-  selectedImageryProviderViewModel: ProviderViewModel
-  imageryProviderViewModels: ProviderViewModel[]
-  selectedTerrainProviderViewModel: ProviderViewModel
-  terrainProviderViewModels: ProviderViewModel[]
-  baseLayer: ImageryLayer | false
-  ellipsoid: Ellipsoid
-  terrainProvider: TerrainProvider
-  terrain: Terrain
-  skyBox: SkyBox | false
-  skyAtmosphere: SkyAtmosphere | false
-  fullscreenElement: Element | string
-  useDefaultRenderLoop: boolean
-  targetFrameRate: number
-  showRenderLoopErrors: boolean
-  useBrowserRecommendedResolution: boolean
-  automaticallyTrackDataSourceClocks: boolean
-  contextOptions: ContextOptions
-  sceneMode: SceneMode
-  mapProjection: MapProjection
-  globe: Globe
-  orderIndependentTranslucency: boolean
-  creditContainer: Element | string
-  creditViewport: Element | string
-  dataSources: DataSourceCollection
-  shadows: boolean;
-  terrainShadows: ShadowMode
-  mapMode2D: MapMode2D
-  projectionPicker: boolean
-  blurActiveElementOnCanvasFocus: boolean
-  requestRenderMode: boolean
-  maximumRenderTimeChange: number
-  depthPlaneEllipsoidOffset: number
-  msaaSamples: number
+  animation?: boolean
+  baseLayerPicker?: boolean
+  fullscreenButton?: boolean
+  vrButton?: boolean
+  geocoder?: boolean | GeocoderService[]
+  homeButton?: boolean
+  infoBox?: boolean
+  sceneModePicker?: boolean
+  selectionIndicator?: boolean
+  timeline?: boolean
+  navigationHelpButton?: boolean
+  navigationInstructionsInitiallyVisible?: boolean
+  scene3DOnly?: boolean
+  shouldAnimate?: boolean
+  clockViewModel?: ClockViewModel
+  selectedImageryProviderViewModel?: ProviderViewModel
+  imageryProviderViewModels?: ProviderViewModel[]
+  selectedTerrainProviderViewModel?: ProviderViewModel
+  terrainProviderViewModels?: ProviderViewModel[]
+  baseLayer?: ImageryLayer | false
+  ellipsoid?: Ellipsoid
+  terrainProvider?: TerrainProvider
+  terrain?: Terrain
+  skyBox?: SkyBox | false
+  skyAtmosphere?: SkyAtmosphere | false
+  fullscreenElement?: Element | string
+  useDefaultRenderLoop?: boolean
+  targetFrameRate?: number
+  showRenderLoopErrors?: boolean
+  useBrowserRecommendedResolution?: boolean
+  automaticallyTrackDataSourceClocks?: boolean
+  contextOptions?: ContextOptions
+  sceneMode?: SceneMode
+  mapProjection?: MapProjection
+  globe?: Globe
+  orderIndependentTranslucency?: boolean
+  creditContainer?: Element | string
+  creditViewport?: Element | string
+  dataSources?: DataSourceCollection
+  shadows?: boolean;
+  terrainShadows?: ShadowMode
+  mapMode2D?: MapMode2D
+  projectionPicker?: boolean
+  blurActiveElementOnCanvasFocus?: boolean
+  requestRenderMode?: boolean
+  maximumRenderTimeChange?: number
+  depthPlaneEllipsoidOffset?: number
+  msaaSamples?: number
 }
 
 
@@ -228,13 +229,16 @@ export default class OLCesium {
         navigationHelpButton: false,
         sceneModePicker: false,
         baseLayerPicker: false,
-        creditContainer: false,
+        // creditContainer: false,
         timeline: false,
-        baseLayer: false, // FIXME: TS类型错误
+        // baseLayer: false, // FIXME: TS类型错误
         scene3DOnly: true,
+        showRenderLoopErrors: false // FIXME: 同步矢量数据，stroke会同步错误，导致弹出面板
       };
 
     this.viewer_ = new Cesium.Viewer(this.container_, viewerOptions);
+    this.scene_ = this.viewer_.scene;
+    this.canvas_ = this.viewer_.scene.canvas;
 
     /**
      * Whether the Cesium container is placed over the ol map.
@@ -251,9 +255,7 @@ export default class OLCesium {
       }
     }
 
-    this.canvas_ = document.createElement<'canvas'>('canvas');
-    // TODO: 确认canvas的实际用处
-    // this.canvas_ = this.viewer_.container.getElementsByClassName('cesium-widget')[0].children[0] as HTMLCanvasElement;
+    // this.canvas_ = document.createElement<'canvas'>('canvas');
     const canvasAttribute = document.createAttribute('style');
     canvasAttribute.value = fillArea;
     this.canvas_.setAttributeNode(canvasAttribute);
@@ -269,10 +271,6 @@ export default class OLCesium {
     this.canvas_.onselectstart = function() {
       return false;
     };
-
-    this.container_.appendChild(this.canvas_);
-
-    this.scene_ = this.viewer_.scene; // TODO: 统一从this.viewer_中获取
 
     const sscc = this.scene_.screenSpaceCameraController;
 
@@ -296,6 +294,7 @@ export default class OLCesium {
 
     this.camera_ = new olcsCamera(this.scene_, this.map_);
 
+    // TODO: 更换椭球体
     this.globe_ = new Cesium.Globe(Cesium.Ellipsoid.WGS84);
     this.globe_.baseColor = Cesium.Color.WHITE;
     this.scene_.globe = this.globe_;
@@ -456,8 +455,8 @@ export default class OLCesium {
     }
 
     if (width === this.canvasClientWidth_ &&
-        height === this.canvasClientHeight_ &&
-        !this.resolutionScaleChanged_) {
+      height === this.canvasClientHeight_ &&
+      !this.resolutionScaleChanged_) {
       return;
     }
 
@@ -494,6 +493,10 @@ export default class OLCesium {
 
   getCesiumScene(): Scene {
     return this.scene_;
+  }
+
+  getCesiumViewer(): Viewer {
+    return this.viewer_;
   }
 
   getDataSources(): DataSourceCollection {
@@ -536,7 +539,7 @@ export default class OLCesium {
           let interactionRemoved = false;
           this.pausedInteractions_ = this.pausedInteractions_.filter((i) => {
             const removed = i !== interaction;
-            if (!interactionRemoved) {interactionRemoved = removed;}
+            if (!interactionRemoved) { interactionRemoved = removed; }
             return removed;
           });
           return interactionRemoved ? interaction : undefined;
