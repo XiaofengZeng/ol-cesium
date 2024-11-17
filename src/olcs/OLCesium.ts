@@ -236,8 +236,8 @@ export default class OLCesium {
       };
 
     this.viewer_ = new Cesium.Viewer(this.container_, viewerOptions);
-    this.scene_ = this.viewer_.scene
-    this.canvas_ = this.viewer_.scene.canvas
+    this.scene_ = this.viewer_.scene;
+    this.canvas_ = this.viewer_.scene.canvas;
 
     /**
      * Whether the Cesium container is placed over the ol map.
@@ -308,8 +308,8 @@ export default class OLCesium {
     });
     this.globe_.imageryLayers.addImageryProvider(firstImageryProvider, 0);
 
-    this.dataSourceCollection_ = this.viewer_.dataSources
-    this.dataSourceDisplay_ = this.viewer_.dataSourceDisplay
+    this.dataSourceCollection_ = this.viewer_.dataSources;
+    this.dataSourceDisplay_ = this.viewer_.dataSourceDisplay;
 
     this.synchronizers_ = options.createSynchronizers ?
       options.createSynchronizers(this.map_, this.scene_, this.dataSourceCollection_) : [
